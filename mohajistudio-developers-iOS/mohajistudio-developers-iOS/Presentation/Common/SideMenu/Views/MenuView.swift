@@ -20,11 +20,6 @@ class MenuView: UIView {
     
     private let sideMenuViewModel = SideMenuViewModel()
     
-    private let closeButton = UIButton().then {
-        $0.setImage(UIImage(named: "Close"), for: .normal)
-        $0.tintColor = UIColor(named: "Primary")
-    }
-    
     private(set) var tableView = UITableView(frame: .zero, style: .grouped).then {
         $0.backgroundColor = UIColor(named: "Bg 1")
         $0.register(MenuStringCell.self, forCellReuseIdentifier: MenuStringCell.identifier)
@@ -38,7 +33,6 @@ class MenuView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupUI()
-        setupAction()
     }
     
     required init?(coder: NSCoder) {
@@ -54,31 +48,16 @@ class MenuView: UIView {
     }
     
     private func setupHierarchy() {
-        addSubview(closeButton)
         addSubview(tableView)
     }
     
     private func setupConstraints() {
         
-        closeButton.snp.makeConstraints {
-            $0.leading.equalToSuperview().offset(16)
-            $0.top.equalTo(safeAreaLayoutGuide.snp.top).offset(8)
-            $0.width.height.equalTo(24)
-        }
-        
         tableView.snp.makeConstraints {
             $0.horizontalEdges.equalToSuperview()
-            $0.top.equalTo(closeButton.snp.bottom).offset(8)
+            $0.top.equalTo(safeAreaLayoutGuide.snp.top)
             $0.bottom.equalToSuperview()
         }
-    }
-    
-    private func setupAction() {
-        closeButton.addTarget(self, action: #selector(didTapCloseButton), for: .touchUpInside)
-    }
-    
-    @objc private func didTapCloseButton() {
-        delegate?.didTapCloseButton()
     }
     
 }
@@ -184,11 +163,21 @@ extension MenuView: UITableViewDataSource, UITableViewDelegate {
                 self?.onLoginTapped?()
             }
             
+            headerView.onCloseMenuTapped = { [weak self] in
+                self?.delegate?.didTapCloseButton()
+            }
+            
             return headerView
         case 1:
             guard let headerView = tableView.dequeueReusableHeaderFooterView(withIdentifier: DevelopersHeaderView.identifier) as? DevelopersHeaderView else {
                 return nil
             }
+            if sideMenuViewModel.isLoggedIn {
+                headerView.hideSeparatorView(isHidden: false)
+            } else {
+                headerView.hideSeparatorView(isHidden: true)
+            }
+            
             return headerView
         default:
             return nil
@@ -198,7 +187,7 @@ extension MenuView: UITableViewDataSource, UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
         switch section {
         case 0:
-            return 84
+            return sideMenuViewModel.isLoggedIn ? 84 : 40
         case 1:
             return 61
         default:

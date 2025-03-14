@@ -1,17 +1,20 @@
 //
-//  ProfileHeaderView.swift
+//  UserProfileHeaderView.swift
 //  mohajistudio-developers-iOS
 //
-//  Created by 송규섭 on 2/13/25.
+//  Created by 송규섭 on 3/14/25.
 //
 
 import UIKit
 
-class ProfileHeaderView: UITableViewHeaderFooterView {
+class UserProfileHeaderView: UIView {
     
-    static let identifier = "ProfileHeaderView"
+    var onCloseMenuTapped: (() -> Void)?
     
-    var onLoginTapped: (() -> Void)?
+    private let closeButton = UIButton().then {
+        $0.setImage(UIImage(named: "Close"), for: .normal)
+        $0.tintColor = UIColor(named: "Primary")
+    }
     
     private let profileImageView = UIImageView().then {
         $0.image = UIImage(named: "Default_profile") // 임시 프로필 이미지
@@ -31,44 +34,45 @@ class ProfileHeaderView: UITableViewHeaderFooterView {
         $0.font = UIFont(name: "Pretendard-Medium", size: 14)
     }
     
-    private let loginButton = UIButton().then {
-        $0.setTitle("로그인", for: .normal)
-        $0.setTitleColor(UIColor(named: "Primary"), for: .normal)
-        $0.titleLabel?.font = UIFont(name: "Pretendard-Medium", size: 14)
-    }
-    
     private let separatorView = UIView().then {
         $0.backgroundColor = UIColor(named: "Bg 2")
     }
-    
-    override init(reuseIdentifier: String?) {
-        super.init(reuseIdentifier: reuseIdentifier)
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        
         setupUI()
-        setupActions()
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented.")
     }
-    
+
     private func setupUI() {
         setupHierarchy()
         setupConstraints()
     }
     
     private func setupHierarchy() {
-        contentView.addSubview(profileImageView)
-        contentView.addSubview(nameLabel)
-        contentView.addSubview(roleLabel)
-        contentView.addSubview(loginButton)
-        contentView.addSubview(separatorView)
+        addSubview(closeButton)
+        addSubview(profileImageView)
+        addSubview(nameLabel)
+        addSubview(roleLabel)
     }
     
     private func setupConstraints() {
-        profileImageView.snp.makeConstraints {
-            $0.verticalEdges.equalToSuperview().inset(20)
+        
+        closeButton.snp.makeConstraints {
             $0.leading.equalToSuperview().offset(16)
-            $0.width.height.equalTo(44)
+            $0.top.equalToSuperview().offset(8)
+            $0.width.height.equalTo(24)
+        }
+        
+        profileImageView.snp.makeConstraints {
+            $0.top.equalTo(closeButton.snp.bottom).offset(28)
+            $0.bottom.equalToSuperview().inset(20)
+            $0.leading.equalToSuperview().offset(16)
+            $0.width.height.equalTo(40)
         }
         
         nameLabel.snp.makeConstraints {
@@ -83,31 +87,10 @@ class ProfileHeaderView: UITableViewHeaderFooterView {
             $0.trailing.equalToSuperview().inset(16)
         }
         
-        loginButton.snp.makeConstraints {
-            $0.centerY.equalToSuperview()
-            $0.trailing.equalToSuperview().inset(10)
-        }
-        
-        separatorView.snp.makeConstraints {
-            $0.horizontalEdges.equalToSuperview()
-            $0.bottom.equalToSuperview()
-            $0.height.equalTo(1)
-        }
     }
     
-    private func setupActions() {
-        loginButton.addTarget(self, action: #selector(didTapLoginButton), for: .touchUpInside)
-    }
-    
-    @objc private func didTapLoginButton() {
-        onLoginTapped?()
-    }
-
-    func configureForGuest() {
-        profileImageView.image = UIImage(systemName: "person")?.withTintColor((UIColor(named: "Primary")!))
-        nameLabel.text = "로그인이 필요합니다"
-        roleLabel.text = ""
-        loginButton.isHidden = false
+    func setupAction() {
+        closeButton.addTarget(self, action: #selector(didTapCloseButton), for: .touchUpInside)
     }
     
     func configure(user: SimpleUserInfo) {
@@ -118,9 +101,17 @@ class ProfileHeaderView: UITableViewHeaderFooterView {
             profileImageView.image = UIImage(named: "Default_profile")
         }
         
+        if let jobRole = user.jobRole {
+            roleLabel.text = jobRole
+        } else {
+            roleLabel.text = "iOS Developer"
+        }
+        
         nameLabel.text = user.nickname
-        roleLabel.text = user.role
-        loginButton.isHidden = true
+    }
+    
+    @objc private func didTapCloseButton() {
+        self.onCloseMenuTapped?()
     }
     
 }

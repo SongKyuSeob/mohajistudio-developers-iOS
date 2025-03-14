@@ -11,6 +11,11 @@ class DevelopersHeaderView: UITableViewHeaderFooterView {
 
     static let identifier = "DevelopersHeaderView"
     
+    private let closeButton = UIButton().then {
+        $0.setImage(UIImage(named: "Close"), for: .normal)
+        $0.tintColor = UIColor(named: "Primary")
+    }
+    
     private let separatorView = UIView().then {
         $0.backgroundColor = UIColor(named: "Bg 2")
     }
@@ -58,5 +63,8 @@ class DevelopersHeaderView: UITableViewHeaderFooterView {
         
     }
 
+    func hideSeparatorView(isHidden: Bool) {
+        separatorView.isHidden = isHidden
+    }
 
 }
