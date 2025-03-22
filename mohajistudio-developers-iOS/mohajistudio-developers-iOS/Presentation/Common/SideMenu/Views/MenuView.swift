@@ -33,6 +33,7 @@ class MenuView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         setupUI()
+        
     }
     
     required init?(coder: NSCoder) {
@@ -185,9 +186,12 @@ extension MenuView: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        let height: CGFloat
         switch section {
         case 0:
-            return sideMenuViewModel.isLoggedIn ? 84 : 40
+            height = sideMenuViewModel.isLoggedIn ? 120 : 40
+            print("Header height for section 0: \(height), isLoggedIn: \(sideMenuViewModel.isLoggedIn)")
+            return height
         case 1:
             return 61
         default:

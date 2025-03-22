@@ -34,7 +34,11 @@ class UserProfileHeaderView: UIView {
         $0.font = UIFont(name: "Pretendard-Medium", size: 14)
     }
     
-    private let separatorView = UIView().then {
+    private let topSeparatorView = UIView().then {
+        $0.backgroundColor = UIColor(named: "Bg 2")
+    }
+    
+    private let bottomSeparatorView = UIView().then {
         $0.backgroundColor = UIColor(named: "Bg 2")
     }
 
@@ -42,6 +46,7 @@ class UserProfileHeaderView: UIView {
         super.init(frame: frame)
         
         setupUI()
+        setupAction()
     }
     
     required init?(coder: NSCoder) {
@@ -58,6 +63,8 @@ class UserProfileHeaderView: UIView {
         addSubview(profileImageView)
         addSubview(nameLabel)
         addSubview(roleLabel)
+        addSubview(topSeparatorView)
+        addSubview(bottomSeparatorView)
     }
     
     private func setupConstraints() {
@@ -70,21 +77,32 @@ class UserProfileHeaderView: UIView {
         
         profileImageView.snp.makeConstraints {
             $0.top.equalTo(closeButton.snp.bottom).offset(28)
-            $0.bottom.equalToSuperview().inset(20)
             $0.leading.equalToSuperview().offset(16)
             $0.width.height.equalTo(40)
         }
         
         nameLabel.snp.makeConstraints {
-            $0.top.equalToSuperview().offset(20)
+            $0.top.equalTo(profileImageView.snp.top)
             $0.leading.equalTo(profileImageView.snp.trailing).offset(16)
             $0.trailing.equalToSuperview().inset(16)
         }
         
         roleLabel.snp.makeConstraints {
-            $0.bottom.equalToSuperview().offset(-20)
+            $0.bottom.equalTo(profileImageView.snp.bottom)
             $0.leading.equalTo(nameLabel)
             $0.trailing.equalToSuperview().inset(16)
+        }
+        
+        topSeparatorView.snp.makeConstraints {
+            $0.top.equalTo(nameLabel.snp.top).offset(-20)
+            $0.horizontalEdges.equalToSuperview().inset(16)
+            $0.height.equalTo(1)
+        }
+        
+        bottomSeparatorView.snp.makeConstraints {
+            $0.bottom.equalTo(roleLabel.snp.bottom).offset(20)
+            $0.horizontalEdges.equalTo(topSeparatorView.snp.horizontalEdges)
+            $0.height.equalTo(1)
         }
         
     }

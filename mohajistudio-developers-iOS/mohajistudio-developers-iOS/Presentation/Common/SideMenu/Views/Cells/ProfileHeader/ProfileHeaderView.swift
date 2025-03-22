@@ -53,8 +53,6 @@ class ProfileHeaderView: UITableViewHeaderFooterView {
         guestView.snp.makeConstraints {
             $0.edges.equalToSuperview()
         }
-        
-        
     }
     
     func configureForGuest() {

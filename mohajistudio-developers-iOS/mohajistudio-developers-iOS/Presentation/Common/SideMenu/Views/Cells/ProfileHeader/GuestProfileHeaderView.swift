@@ -51,13 +51,13 @@ class GuestProfileHeaderView: UIView {
     private func setupConstraints() {
         
         closeButton.snp.makeConstraints {
-            $0.verticalEdges.equalToSuperview().inset(8)
+            $0.centerY.equalToSuperview()
             $0.leading.equalToSuperview().offset(16)
             $0.width.height.equalTo(24)
         }
         
         loginButton.snp.makeConstraints {
-            $0.verticalEdges.equalToSuperview().inset(8)
+            $0.centerY.equalToSuperview()
             $0.trailing.equalToSuperview().offset(-16)
             $0.width.height.equalTo(24)
         }
