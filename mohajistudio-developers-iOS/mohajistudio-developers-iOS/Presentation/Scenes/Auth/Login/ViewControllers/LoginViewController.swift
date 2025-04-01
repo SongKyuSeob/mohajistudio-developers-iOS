@@ -12,6 +12,8 @@ class LoginViewController: UIViewController {
     enum Step {
         case email
         case password
+        case resetPwdVerify
+        case resetPwd
         
         func view(delegate: Any) -> UIView {
             switch self {
@@ -22,6 +24,14 @@ class LoginViewController: UIViewController {
             case .password:
                 let view = PasswordView()
                 view.delegate = delegate as? PasswordViewDelegate
+                return view
+            case .resetPwdVerify:
+                let view = ResetPwdEmailCodeView()
+                view.delegate = delegate as? ResetPwdEmailCodeViewDelegate
+                return view
+            case .resetPwd:
+                let view = ResetPwdView()
+                view.delegate = delegate as? ResetPwdViewDelegate
                 return view
             }
         }
@@ -123,7 +133,19 @@ class LoginViewController: UIViewController {
             currentStep = .password
             updateView(for: .password, animated: true, reverseAnimation: false)
         case .password:
-            return
+            currentStep = .resetPwdVerify
+            updateView(for: .resetPwdVerify, animated: true, reverseAnimation: false)
+        case .resetPwdVerify:
+            currentStep = .resetPwd
+            updateView(for: .resetPwd, animated: true, reverseAnimation: false)
+        case .resetPwd:
+            showAlert(title: "비밀번호 재설정 완료" ,message: "로그인 페이지로 이동합니다.", confirmHandler:  {
+                self.viewModel.updateEmail("")
+                self.viewModel.updatePassword("")
+                KeychainHelper.shared.clearTokens()
+                self.currentStep = .email
+                self.updateView(for: .email, animated: true, reverseAnimation: true)
+            })
         }
     }
     
@@ -135,6 +157,12 @@ class LoginViewController: UIViewController {
             currentStep = .email
             viewModel.updateEmail("")
             updateView(for: .email, animated: true, reverseAnimation: true)
+        case .resetPwdVerify:
+            currentStep = .password
+            updateView(for: .password, animated: true, reverseAnimation: true)
+        case .resetPwd:
+            currentStep = .password
+            updateView(for: .password, animated: true, reverseAnimation: true)
         }
     }
     
@@ -168,6 +196,53 @@ extension LoginViewController: EmailViewDelegate {
 
 extension LoginViewController: PasswordViewDelegate {
     
+    func passwordViewDidTapFindPasswordBtn() {
+        let resetPwdVC = ResetPasswordModalViewController()
+        resetPwdVC.modalPresentationStyle = .overFullScreen
+        
+        resetPwdVC.resetButtonTapped = {
+            Task {
+                do {
+                    let response = try await self.viewModel.requestEmailVerificationCode()
+                    
+                    await MainActor.run {
+                        self.moveToNextStep()
+                        
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                            if let resetPwdEmailCodeView = self.containerView.subviews.first as? ResetPwdEmailCodeView {
+                                self.viewModel.onTimerUpdated = { timeString in
+                                    DispatchQueue.main.async {
+                                        resetPwdEmailCodeView.updateTimerText(timeString)
+                                    }
+                                }
+                                
+                                self.viewModel.onTimerFinished = {
+                                    DispatchQueue.main.async {
+                                        resetPwdEmailCodeView.timerFinished()
+                                    }
+                                }
+                                
+                                self.viewModel.startTimer(expirationDateString: response.expiredAt)
+                            }
+                        }
+                    }
+                } catch let error as NetworkError {
+                    self.showAlert(message: error.errorMessage, cancelHandler: {
+                        self.moveToPreviousStep()
+                    })
+                } catch {
+                    await MainActor.run {
+                        self.showAlert(message: "인증코드 요청에 실패했습니다.", cancelHandler: {
+                            self.moveToPreviousStep()
+                        })
+                    }
+                }
+            }
+        }
+        
+        self.present(resetPwdVC, animated: false)
+    }
+    
     func passwordViewDidTapBackBtn() {
         moveToPreviousStep()
     }
@@ -183,7 +258,6 @@ extension LoginViewController: PasswordViewDelegate {
                 await MainActor.run {
                     self.showAlert(message: "로그인에 성공했습니다.", confirmHandler:  {
                         self.navigationController?.dismiss(animated: true)
-                        
                     })
                 }
             } catch let error as NetworkError {
@@ -196,9 +270,84 @@ extension LoginViewController: PasswordViewDelegate {
                     self.showAlert(message: "예기치 못한 오류가 발생했습니다.\n다시 시도해주세요.")
                 }
             }
-
         }
-        
     }
     
+}
+
+extension LoginViewController: ResetPwdEmailCodeViewDelegate {
+    func didTapNextButton(code: String) {
+        guard let currentView = containerView.subviews.first as? ResetPwdEmailCodeView else { return }
+        
+        guard ValidationUtility.isValidVerificationCode(code) else {
+            currentView.showVerificationError(error: "인증코드가 올바르지 않습니다.")
+            return
+        }
+        
+        Task {
+            do {
+                try await viewModel.verifyEmailCode(code: code)
+                await MainActor.run {
+                    moveToNextStep()
+                }
+            } catch let error as NetworkError {
+                await MainActor.run {
+                    showAlert(message: error.errorMessage)
+                }
+            } catch {
+                await MainActor.run {
+                    showAlert(message: "예기치 못한 오류가 발생했습니다.\n잠시 후 다시 시도해주세요.")
+                }
+            }
+        }
+    }
+    
+    func didTapResendButton() {
+        Task {
+            do {
+                let response = try await viewModel.requestEmailVerificationCode()
+                
+                if let resetPwdEmailCodeView = containerView.subviews.first as? ResetPwdEmailCodeView {
+                    viewModel.startTimer(expirationDateString: response.expiredAt)
+                }
+            } catch {
+                await MainActor.run {
+                    self.showAlert(message: "인증코드 재전송에 실패했습니다.")
+                }
+            }
+        }
+    }
+    
+    func didTapBackButton() {
+        print("비번 재설정 이메일 인증 페이지 뒤로가기 버튼 탭")
+        moveToPreviousStep()
+    }
+}
+
+extension LoginViewController: ResetPwdViewDelegate {
+    func resetPwdViewDidTapBack() {
+        moveToPreviousStep()
+    }
+    
+    func resetPwdViewDidTapNext(password: String) {
+        
+        guard ValidationUtility.isValidPassword(password) else { return }
+        
+        Task {
+            do {
+                try await viewModel.resetPassword(password: password)
+                await MainActor.run {
+                    moveToNextStep()
+                }
+            } catch let error as NetworkError {
+                await MainActor.run {
+                    showAlert(message: error.errorMessage)
+                }
+            } catch {
+                await MainActor.run {
+                    showAlert(message: "예기치 못한 오류가 발생했습니다.\n다시 시도해주세요.")
+                }
+            }
+        }
+    }
 }

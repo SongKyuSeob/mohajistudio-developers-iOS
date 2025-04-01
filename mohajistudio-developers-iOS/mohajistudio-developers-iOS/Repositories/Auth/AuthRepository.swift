@@ -15,6 +15,8 @@ protocol AuthRepositoryProtocol {
     func setPassword(password: String) async throws
     func setNickname(nickname: String) async throws
     func login(email: String, password: String) async throws -> AuthTokenResponse
+    func requestEmailVerificationWhenPwdReset(email: String) async throws -> RequestEmailCodeResponse
+    func resetPassword(password: String) async throws
 }
 
 final class AuthRepository: AuthRepositoryProtocol {
@@ -167,6 +169,82 @@ final class AuthRepository: AuthRepositoryProtocol {
                 throw NetworkError.invalidResponse
             }
         }
+    }
+    
+    func requestEmailVerificationWhenPwdReset(email: String) async throws -> RequestEmailCodeResponse {
+        
+        let request = EmailVerificationRequest(email: email)
+        
+        let response = try await AF.request(AuthRouter.requestEmailVerificationWhenPwdReset(request), interceptor: AuthInterceptor())
+            .validate()
+            .serializingResponse(using: .data)
+            .response
+        
+        print("\(response)")
+        
+        guard let statusCode = response.response?.statusCode else {
+            throw NetworkError.invalidResponse
+        }
+        
+        switch statusCode {
+        case 200:
+            guard let data = response.data else { throw NetworkError.invalidResponse }
+            let decoder = JSONDecoder()
+            return try decoder.decode(RequestEmailCodeResponse.self, from: data)
+        default:
+            if let data = response.data {
+                throw try handleError(data)
+            } else {
+                throw NetworkError.invalidResponse
+            }
+        }
+        
+    }
+    
+    func verifyEmailCodeWhenResetPwd(email: String, code: String) async throws -> AuthTokenResponse {
+        let request = EmailCodeVerificationRequest(email: email, code: code)
+        
+        let response = try await AF.request(AuthRouter.verifyEmailCodeWhenPwdReset(request))
+            .serializingResponse(using: .data)
+            .response
+        
+        print("request: \(request)")
+        debugPrint(response)
+        
+        if response.response?.statusCode == 200 {
+            guard let data = response.data else {
+                throw NetworkError.invalidResponse
+            }
+            
+            let decoder = JSONDecoder()
+            
+            return try decoder.decode(AuthTokenResponse.self, from: data)
+        }
+        
+        guard let data = response.data else {
+            throw NetworkError.invalidResponse
+        }
+        
+        throw try handleError(data)
+    }
+    
+    func resetPassword(password: String) async throws {
+        let request = ResetPasswordRequest(password: password)
+        
+        let response = try await AF.request(AuthRouter.resetPassword(request), interceptor: AuthInterceptor())
+            .validate()
+            .serializingResponse(using: .data)
+            .response
+        
+        if response.response?.statusCode == 200 {
+            return
+        }
+        
+        guard let data = response.data else {
+            throw NetworkError.invalidResponse
+        }
+        
+        throw try handleError(data)
     }
     
     
